@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 """
 Mask R-CNN
 Configurations and data loading code for MS COCO.
@@ -42,6 +44,15 @@ import imgaug  # https://github.com/aleju/imgaug (pip3 install imgaug)
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as maskUtils
+
+################ disable gpu
+import tensorflow as tf
+tf.config.set_visible_devices([], 'GPU')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+print(tf.__version__)
+
+
+
 
 import zipfile
 import urllib.request
