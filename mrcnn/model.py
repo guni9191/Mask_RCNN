@@ -7,6 +7,7 @@ Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
 """
 
+
 import os
 import random
 import datetime
@@ -17,22 +18,38 @@ from collections import OrderedDict
 import multiprocessing
 import numpy as np
 import tensorflow as tf
-import keras
-import keras.backend as K
-import keras.layers as KL
-import keras.engine as KE
-import keras.models as KM
+
+#@psh, change version
+#import keras
+#import keras.backend as K
+#import keras.layers as KL
+#import keras.engine as KE
+#import keras.models as KM
+
+import tensorflow.keras
+import tensorflow.keras.backend as K
+import tensorflow.keras.layers as KL
+import tensorflow.python.keras.engine as KE
+import tensorflow.keras.models as KM
 
 from mrcnn import utils
+
+#@psh, version compatibility add
+tf.compat.v1.disable_eager_execution()
+
 
 # Requires TensorFlow 1.3+ and Keras 2.0.8+.
 from distutils.version import LooseVersion
 assert LooseVersion(tf.__version__) >= LooseVersion("1.3")
-assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
+
+#@psh, change version
+#assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
+assert LooseVersion(tensorflow.keras.__version__) >= LooseVersion('2.0.8')
 
 
 ########### define class because of tensorflow change @psh
-class AnchorsLayer(tf.keras.layers.Layer):
+#class AnchorsLayer(tf.keras.layers.Layer):
+class AnchorsLayer(tensorflow.keras.layers.Layer):
     def __init__(self, name="anchors", **kwargs):
         super(AnchorsLayer, self).__init__(name=name, **kwargs)
 
@@ -264,8 +281,9 @@ def clip_boxes_graph(boxes, window):
     clipped.set_shape((clipped.shape[0], 4))
     return clipped
 
-
-class ProposalLayer(KE.Layer):
+#@psh, change import
+#class ProposalLayer(KE.Layer):
+class ProposalLayer(KL.Layer):
     """Receives anchor scores and selects a subset to pass as proposals
     to the second stage. Filtering is done based on anchor scores and
     non-max suppression to remove overlaps. It also applies bounding
@@ -355,8 +373,9 @@ def log2_graph(x):
     #### @psh, version change.
     return tf.math.log(x) / tf.math.log(2.0)
 
-
-class PyramidROIAlign(KE.Layer):
+#@psh, change class
+#class PyramidROIAlign(KE.Layer):
+class PyramidROIAlign(KL.Layer):
     """Implements ROI Pooling on multiple levels of the feature pyramid.
 
     Params:
@@ -639,8 +658,9 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
 
     return rois, roi_gt_class_ids, deltas, masks
 
-
-class DetectionTargetLayer(KE.Layer):
+#@psh, change class
+#class DetectionTargetLayer(KE.Layer):
+class DetectionTargetLayer(KL.Layer):
     """Subsamples proposals and generates target box refinement, class_ids,
     and masks for each.
 
@@ -799,8 +819,9 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     detections = tf.pad(detections, [(0, gap), (0, 0)], "CONSTANT")
     return detections
 
-
-class DetectionLayer(KE.Layer):
+#@psh, change class
+#class DetectionLayer(KE.Layer):
+class DetectionLayer(KL.Layer):
     """Takes classified proposal boxes and their bounding box deltas and
     returns the final detection boxes.
 
@@ -2135,6 +2156,7 @@ class MaskRCNN():
         except ImportError:
             # Keras before 2.2 used the 'topology' namespace.
             from keras.engine import topology as saving
+            
 
         if exclude:
             by_name = True
@@ -2155,10 +2177,12 @@ class MaskRCNN():
         if exclude:
             layers = filter(lambda l: l.name not in exclude, layers)
 
-        if by_name:
-            saving.load_weights_from_hdf5_group_by_name(f, layers)
-        else:
-            saving.load_weights_from_hdf5_group(f, layers)
+        ### @psh, commented out this.
+        #if by_name:
+        #    saving.load_weights_from_hdf5_group_by_name(f, layers)
+        #else:
+        #    saving.load_weights_from_hdf5_group(f, layers)
+
         if hasattr(f, 'close'):
             f.close()
 
@@ -2184,13 +2208,21 @@ class MaskRCNN():
         metrics. Then calls the Keras compile() function.
         """
         # Optimizer object
-        optimizer = keras.optimizers.SGD(
+
+        #@psh, change tf.
+        #optimizer = keras.optimizers.SGD(
+        #    lr=learning_rate, momentum=momentum,
+        #    clipnorm=self.config.GRADIENT_CLIP_NORM)
+        optimizer = tf.keras.optimizers.SGD(
             lr=learning_rate, momentum=momentum,
             clipnorm=self.config.GRADIENT_CLIP_NORM)
+
         # Add Losses
         # First, clear previously set losses to avoid duplication
-        self.keras_model._losses = []
-        self.keras_model._per_input_losses = {}
+        
+        # @psh, version change
+        #self.keras_model.self.keras_model._losses = []        #self.keras_model._losses = []
+        #self.keras_model._per_input_losses = {}
         loss_names = [
             "rpn_class_loss",  "rpn_bbox_loss",
             "mrcnn_class_loss", "mrcnn_bbox_loss", "mrcnn_mask_loss"]
@@ -2206,7 +2238,10 @@ class MaskRCNN():
         # Add L2 Regularization
         # Skip gamma and beta weights of batch normalization layers.
         reg_losses = [
-            keras.regularizers.l2(self.config.WEIGHT_DECAY)(w) / tf.cast(tf.size(w), tf.float32)
+
+            #@psh, change tf
+            #keras.regularizers.l2(self.config.WEIGHT_DECAY)(w) / tf.cast(tf.size(w), tf.float32)
+            tf.keras.regularizers.l2(self.config.WEIGHT_DECAY)(w) / tf.cast(tf.size(w), tf.float32)
             for w in self.keras_model.trainable_weights
             if 'gamma' not in w.name and 'beta' not in w.name]
         self.keras_model.add_loss(tf.add_n(reg_losses))
@@ -2217,6 +2252,9 @@ class MaskRCNN():
             loss=[None] * len(self.keras_model.outputs))
 
         # Add metrics for losses
+        # @psh, add this for initialization
+        self.keras_model.metrics_tensors = []
+
         for name in loss_names:
             if name in self.keras_model.metrics_names:
                 continue
@@ -2366,11 +2404,18 @@ class MaskRCNN():
 
         # Callbacks
         callbacks = [
-            keras.callbacks.TensorBoard(log_dir=self.log_dir,
+            # @psh, change tf.
+            #keras.callbacks.TensorBoard(log_dir=self.log_dir,
+            #                            histogram_freq=0, write_graph=True, write_images=False),
+            tf.keras.callbacks.TensorBoard(log_dir=self.log_dir,
                                         histogram_freq=0, write_graph=True, write_images=False),
-            keras.callbacks.ModelCheckpoint(self.checkpoint_path,
+            # @psh, change tf.
+            #keras.callbacks.ModelCheckpoint(self.checkpoint_path,
+            #                                verbose=0, save_weights_only=True),
+            tf.keras.callbacks.ModelCheckpoint(self.checkpoint_path,
                                             verbose=0, save_weights_only=True),
         ]
+        
 
         # Add custom callbacks to the list
         if custom_callbacks:
